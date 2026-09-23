@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accounts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <div class="page-head">
+    <div class="row">
+      <div>
+        <h1>Accounts</h1>
+        <p class="muted">Create logins for teachers and students, then share the email and password with them.</p>
+      </div>
+      <button class="toggle" id="user-toggle">
+        <span class="chev"></span><span class="label">New account</span>
+      </button>
+    </div>
+
+    <div class="panel" id="user-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="new-user">
+            <div class="field-row">
+              <div class="field">
+                <label for="name">Full name</label>
+                <input type="text" id="name" placeholder="Asha Kulkarni" required>
+              </div>
+              <div class="field">
+                <label for="role">Role</label>
+                <select id="role">
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="email">Email</label>
+                <input type="text" id="email" placeholder="asha@example.com" required>
+              </div>
+              <div class="field">
+                <label for="password">Password</label>
+                <input type="text" id="password" placeholder="Something they can remember" required>
+              </div>
+            </div>
+            <button type="submit">Create account</button>
+            <p class="note-msg" id="msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Teachers</h2>
+    <div class="card" id="teachers"></div>
+  </div>
+
+  <div class="section">
+    <h2>Students</h2>
+    <div class="card" id="students"></div>
+  </div>
+</main>
+
+<script src="/app.js"></script>
+<script>
+requireUser(['admin']);
+const panel = slideToggle('user-toggle', 'user-panel');
+
+async function load() {
+  const data = await api('GET', '/users');
+  render('teachers', data.users.filter(u => u.role === 'teacher'));
+  render('students', data.users.filter(u => u.role === 'student'));
+}
+
+function render(id, users) {
+  const box = document.getElementById(id);
+  if (!users.length) {
+    box.innerHTML = '<p class="empty">No accounts yet.</p>';
+    return;
+  }
+  box.innerHTML = users.map(u =>
+    '<div class="list-item">' +
+      '<div><div>' + esc(u.name) + '</div><div class="muted">' + esc(u.email) + '</div></div>' +
+      '<button class="link" data-id="' + u.id + '">Remove</button>' +
+    '</div>'
+  ).join('');
+  box.querySelectorAll('button[data-id]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm('Remove this account?')) return;
+      await api('DELETE', '/users/' + btn.dataset.id);
+      load();
+    };
+  });
+}
+
+document.getElementById('new-user').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.className = 'note-msg';
+  msg.textContent = '';
+  try {
+    const created = await api('POST', '/users', {
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value,
+      role: document.getElementById('role').value
+    });
+    this.reset();
+    panel.close();
+    await load();
+    const box = document.getElementById(created.user.role === 'teacher' ? 'teachers' : 'students');
+    const note = document.createElement('p');
+    note.className = 'note-msg ok';
+    note.textContent = 'Account created for ' + created.user.email + '.';
+    box.appendChild(note);
+    setTimeout(() => note.remove(), 4000);
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+load();
+</script>
+</body>
+</html>

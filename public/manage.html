@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage course</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <a class="back" href="/dashboard">&larr; All courses</a>
+
+  <div class="page-head">
+    <div class="row">
+      <div>
+        <h1 id="title"></h1>
+        <p class="muted" id="sub"></p>
+      </div>
+      <button class="link" id="delete-course">Delete course</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Students</h2>
+      <button class="toggle" id="student-toggle">
+        <span class="chev"></span><span class="label">Add student</span>
+      </button>
+    </div>
+
+    <div class="panel" id="student-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-student">
+            <div class="field">
+              <label for="email">Student's email address</label>
+              <input type="text" id="email" placeholder="asha@example.com" required>
+            </div>
+            <button type="submit">Add to course</button>
+            <p class="note-msg" id="student-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="students" style="margin-top:14px"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Notes</h2>
+      <button class="toggle" id="note-toggle">
+        <span class="chev"></span><span class="label">Upload note</span>
+      </button>
+    </div>
+
+    <div class="panel" id="note-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-note">
+            <div class="field">
+              <label for="note-title">Title</label>
+              <input type="text" id="note-title" placeholder="Chapter 3 &mdash; Quadratic equations" required>
+            </div>
+            <div class="field">
+              <label for="note-content">Text (optional)</label>
+              <textarea id="note-content" placeholder="Type the notes here, or leave this blank and attach a file."></textarea>
+            </div>
+            <div class="field">
+              <label for="note-file">Attach a file (optional)</label>
+              <input type="file" id="note-file">
+            </div>
+            <button type="submit">Upload note</button>
+            <p class="note-msg" id="note-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="notes" style="margin-top:14px"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Quizzes</h2>
+      <button class="toggle" id="quiz-toggle">
+        <span class="chev"></span><span class="label">New quiz</span>
+      </button>
+    </div>
+
+    <div class="panel" id="quiz-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-quiz">
+            <div class="field">
+              <label for="quiz-title">Quiz title</label>
+              <input type="text" id="quiz-title" placeholder="Chapter 3 test" required>
+            </div>
+            <div id="questions"></div>
+            <button type="button" class="secondary" id="add-question">Add another question</button>
+            <div style="margin-top:18px"><button type="submit">Save quiz</button></div>
+            <p class="note-msg" id="quiz-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="quizzes" style="margin-top:14px"></div>
+  </div>
+</main>
+
+<script src="/app.js"></script>
+<script>
+requireUser(['teacher']);
+const courseId = param('id');
+
+const studentPanel = slideToggle('student-toggle', 'student-panel');
+const notePanel = slideToggle('note-toggle', 'note-panel');
+const quizPanel = slideToggle('quiz-toggle', 'quiz-panel');
+
+/* ---------- load ---------- */
+
+async function load() {
+  const data = await api('GET', '/courses/' + courseId);
+  document.getElementById('title').textContent = data.course.title;
+  document.getElementById('sub').textContent = data.course.description || '';
+
+  const students = document.getElementById('students');
+  students.innerHTML = data.students.length
+    ? data.students.map(s =>
+        '<div class="list-item">' +
+          '<div><div>' + esc(s.name) + '</div><div class="muted">' + esc(s.email) + '</div></div>' +
+          '<button class="link" data-student="' + s.id + '">Remove</button>' +
+        '</div>'
+      ).join('')
+    : '<p class="empty">No students in this course yet.</p>';
+  students.querySelectorAll('button[data-student]').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('Remove this student from the course?')) return;
+      await api('DELETE', '/courses/' + courseId + '/students/' + b.dataset.student);
+      load();
+    };
+  });
+
+  const notes = document.getElementById('notes');
+  notes.innerHTML = data.notes.length
+    ? data.notes.map(n =>
+        '<div class="list-item">' +
+          '<div><h3>' + esc(n.title) + '</h3>' +
+            (n.content ? '<pre class="note-body">' + esc(n.content) + '</pre>' : '') +
+            (n.fileName ? '<p style="margin:8px 0 0"><a class="tag" href="/files/' + n.id + '">' + esc(n.fileName) + '</a></p>' : '') +
+          '</div>' +
+          '<button class="link" data-note="' + n.id + '">Remove</button>' +
+        '</div>'
+      ).join('')
+    : '<p class="empty">No notes uploaded yet.</p>';
+  notes.querySelectorAll('button[data-note]').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('Remove this note?')) return;
+      await api('DELETE', '/notes/' + b.dataset.note);
+      load();
+    };
+  });
+
+  const quizzes = document.getElementById('quizzes');
+  quizzes.innerHTML = data.quizzes.length
+    ? data.quizzes.map(q =>
+        '<div class="list-item">' +
+          '<div><h3>' + esc(q.title) + '</h3>' +
+            '<p class="muted">' + plural(q.questionCount, 'question') + ' &middot; ' + plural(q.totalMarks, 'mark') + '</p>' +
+            '<div class="muted" id="res-' + q.id + '"></div>' +
+          '</div>' +
+          '<button class="link" data-quiz="' + q.id + '">Remove</button>' +
+        '</div>'
+      ).join('')
+    : '<p class="empty">No quizzes added yet.</p>';
+  quizzes.querySelectorAll('button[data-quiz]').forEach(b => {
+    b.onclick = async () => {
+      if (!confirm('Remove this quiz and its results?')) return;
+      await api('DELETE', '/quizzes/' + b.dataset.quiz);
+      load();
+    };
+  });
+  data.quizzes.forEach(async q => {
+    const r = await api('GET', '/quizzes/' + q.id + '/results');
+    const box = document.getElementById('res-' + q.id);
+    if (!box) return;
+    box.innerHTML = r.results.length
+      ? r.results.map(x => esc(x.student) + ': ' + x.score + '/' + x.total).join('<br>')
+      : 'No attempts yet.';
+  });
+}
+
+/* ---------- students ---------- */
+
+document.getElementById('add-student').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('student-msg');
+  msg.className = 'note-msg';
+  msg.textContent = '';
+  try {
+    await api('POST', '/courses/' + courseId + '/students', {
+      email: document.getElementById('email').value
+    });
+    this.reset();
+    studentPanel.close();
+    load();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+/* ---------- notes ---------- */
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('add-note').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('note-msg');
+  msg.className = 'note-msg';
+  msg.textContent = '';
+  const file = document.getElementById('note-file').files[0];
+  try {
+    if (file && file.size > 15 * 1024 * 1024) throw new Error('Please keep files under 15 MB.');
+    const body = {
+      title: document.getElementById('note-title').value,
+      content: document.getElementById('note-content').value
+    };
+    if (file) {
+      body.fileName = file.name;
+      body.fileData = await readFile(file);
+    }
+    await api('POST', '/courses/' + courseId + '/notes', body);
+    this.reset();
+    notePanel.close();
+    load();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+/* ---------- quiz builder ---------- */
+
+let qCount = 0;
+
+function addQuestion() {
+  const i = qCount++;
+  const div = document.createElement('div');
+  div.className = 'qblock';
+  div.innerHTML =
+    '<div class="field-row">' +
+      '<div class="field"><label>Question ' + (i + 1) + '</label>' +
+        '<input type="text" class="q-text" required></div>' +
+      '<div class="field" style="max-width:96px"><label>Marks</label>' +
+        '<input type="text" class="q-marks" value="1"></div>' +
+    '</div>' +
+    [0, 1, 2, 3].map(o =>
+      '<div class="opt-line">' +
+        '<input type="radio" name="correct' + i + '" value="' + o + '"' + (o === 0 ? ' checked' : '') + ' title="Correct answer">' +
+        '<input type="text" class="q-opt" placeholder="Option ' + (o + 1) + '" required>' +
+      '</div>'
+    ).join('') +
+    '<p class="muted" style="margin:4px 0 0">Select the circle next to the correct option.</p>';
+  document.getElementById('questions').appendChild(div);
+}
+
+addQuestion();
+document.getElementById('add-question').onclick = addQuestion;
+
+document.getElementById('add-quiz').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('quiz-msg');
+  msg.className = 'note-msg';
+  msg.textContent = '';
+  const questions = [...document.querySelectorAll('.qblock')].map(block => ({
+    text: block.querySelector('.q-text').value,
+    marks: block.querySelector('.q-marks').value,
+    options: [...block.querySelectorAll('.q-opt')].map(o => o.value),
+    answer: Number(block.querySelector('input[type=radio]:checked').value)
+  }));
+  try {
+    await api('POST', '/courses/' + courseId + '/quizzes', {
+      title: document.getElementById('quiz-title').value,
+      questions
+    });
+    document.getElementById('quiz-title').value = '';
+    document.getElementById('questions').innerHTML = '';
+    qCount = 0;
+    addQuestion();
+    quizPanel.close();
+    load();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+/* ---------- delete course ---------- */
+
+document.getElementById('delete-course').onclick = async () => {
+  if (!confirm('Delete this course along with its notes and quizzes?')) return;
+  await api('DELETE', '/courses/' + courseId);
+  location.href = '/dashboard';
+};
+
+load().catch(err => { document.querySelector('main').innerHTML = '<p class="note-msg">' + esc(err.message) + '</p>'; });
+</script>
+</body>
+</html>

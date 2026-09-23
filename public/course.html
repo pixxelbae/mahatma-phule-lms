@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <a class="back" href="/dashboard">&larr; All courses</a>
+
+  <div class="page-head">
+    <h1 id="title"></h1>
+    <p class="muted" id="sub"></p>
+  </div>
+
+  <div class="section">
+    <h2>Notes</h2>
+    <div class="card" id="notes"></div>
+  </div>
+
+  <div class="section">
+    <h2>Quizzes</h2>
+    <div class="card" id="quizzes"></div>
+  </div>
+</main>
+
+<script src="/app.js"></script>
+<script>
+requireUser(['student']);
+const courseId = param('id');
+
+async function load() {
+  const data = await api('GET', '/courses/' + courseId);
+  document.getElementById('title').textContent = data.course.title;
+  document.getElementById('sub').textContent =
+    (data.course.description ? data.course.description + ' · ' : '') + 'Taught by ' + data.course.teacher;
+
+  const notes = document.getElementById('notes');
+  notes.innerHTML = data.notes.length
+    ? data.notes.map(n =>
+        '<div class="list-item"><div>' +
+          '<h3>' + esc(n.title) + '</h3>' +
+          (n.content ? '<pre class="note-body">' + esc(n.content) + '</pre>' : '') +
+        '</div>' +
+        (n.fileName
+          ? '<a class="tag" href="/files/' + n.id + '">Download ' + esc(n.fileName) + '</a>'
+          : '') +
+        '</div>'
+      ).join('')
+    : '<p class="empty">No notes have been added yet.</p>';
+
+  const quizzes = document.getElementById('quizzes');
+  quizzes.innerHTML = data.quizzes.length
+    ? data.quizzes.map(q =>
+        '<div class="list-item">' +
+          '<div><h3>' + esc(q.title) + '</h3>' +
+          '<p class="muted">' + plural(q.questionCount, 'question') + ' &middot; ' + plural(q.totalMarks, 'mark') + '</p></div>' +
+          '<div style="display:flex;align-items:center;gap:10px">' + (q.result
+            ? '<span class="tag plain">Scored ' + q.result.score + '/' + q.result.total + '</span>' +
+              '<a class="tag" href="/quiz?id=' + q.id + '">View</a>'
+            : '<a class="tag" href="/quiz?id=' + q.id + '">Attempt</a>') +
+          '</div>' +
+        '</div>'
+      ).join('')
+    : '<p class="empty">No quizzes have been added yet.</p>';
+}
+
+load().catch(err => { document.querySelector('main').innerHTML = '<p class="note-msg">' + esc(err.message) + '</p>'; });
+</script>
+</body>
+</html>

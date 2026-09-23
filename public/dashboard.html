@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <div class="page-head">
+    <div class="row">
+      <div>
+        <h1>My courses</h1>
+        <p class="muted" id="sub"></p>
+      </div>
+      <button class="toggle" id="course-toggle" style="display:none">
+        <span class="chev"></span><span class="label">New course</span>
+      </button>
+    </div>
+
+    <div class="panel" id="course-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="new-course">
+            <div class="field-row">
+              <div class="field">
+                <label for="title">Course name</label>
+                <input type="text" id="title" placeholder="Class 10 Mathematics" required>
+              </div>
+              <div class="field">
+                <label for="description">Short description (optional)</label>
+                <input type="text" id="description" placeholder="Weekday batch, 5 to 6 pm">
+              </div>
+            </div>
+            <button type="submit">Create course</button>
+            <p class="note-msg" id="msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="courses"></div>
+</main>
+
+<script src="/app.js"></script>
+<script>
+const user = requireUser(['teacher', 'student']);
+let panel = null;
+
+if (user.role === 'teacher') {
+  document.getElementById('sub').textContent = 'Courses you teach.';
+  document.getElementById('course-toggle').style.display = '';
+  panel = slideToggle('course-toggle', 'course-panel');
+} else {
+  document.getElementById('sub').textContent = 'Open a course to see its notes and quizzes.';
+}
+
+async function load() {
+  const data = await api('GET', '/courses');
+  const box = document.getElementById('courses');
+  if (!data.courses.length) {
+    box.innerHTML = '<div class="card"><p class="empty">' +
+      (user.role === 'teacher'
+        ? 'You have not created any courses yet.'
+        : 'You have not been added to any courses yet.') +
+      '</p></div>';
+    return;
+  }
+  const href = user.role === 'teacher' ? '/manage?id=' : '/course?id=';
+  box.innerHTML = data.courses.map(c => {
+    const files = plural(c.noteCount, 'note') + ' &middot; ' + plural(c.quizCount, 'quiz', 'quizzes');
+    const meta = user.role === 'teacher'
+      ? plural(c.studentCount, 'student') + ' &middot; ' + files
+      : 'Taught by ' + esc(c.teacher) + ' &middot; ' + files;
+    return '<a class="card" href="' + href + c.id + '">' +
+      '<h3>' + esc(c.title) + '</h3>' +
+      (c.description ? '<p class="muted">' + esc(c.description) + '</p>' : '') +
+      '<p class="muted">' + meta + '</p>' +
+    '</a>';
+  }).join('');
+}
+
+document.getElementById('new-course').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+  try {
+    await api('POST', '/courses', {
+      title: document.getElementById('title').value,
+      description: document.getElementById('description').value
+    });
+    this.reset();
+    panel.close();
+    load();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+load();
+</script>
+</body>
+</html>

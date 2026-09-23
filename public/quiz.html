@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <a class="back" id="back" href="/dashboard">&larr; Back to course</a>
+
+  <div class="page-head">
+    <h1 id="title"></h1>
+    <p class="muted" id="sub"></p>
+  </div>
+
+  <div id="result" style="display:none" class="card">
+    <p class="score" id="score"></p>
+    <p class="muted" style="margin:0">Your answers are shown below with the correct option marked.</p>
+  </div>
+
+  <form id="quiz-form">
+    <div id="questions"></div>
+    <button type="submit" id="submit">Submit answers</button>
+    <p class="note-msg" id="msg"></p>
+  </form>
+</main>
+
+<script src="/app.js"></script>
+<script>
+requireUser(['student']);
+const quizId = param('id');
+let quiz = null;
+
+async function load() {
+  const data = await api('GET', '/quizzes/' + quizId);
+  quiz = data.quiz;
+  document.getElementById('back').href = '/course?id=' + quiz.courseId;
+  document.getElementById('title').textContent = quiz.title;
+  document.getElementById('sub').textContent =
+    quiz.courseTitle + ' · ' + plural(quiz.questions.length, 'question') + ' · ' + plural(quiz.totalMarks, 'mark');
+  render(data.result);
+}
+
+function render(result) {
+  const done = !!result;
+  document.getElementById('questions').innerHTML = quiz.questions.map((q, i) =>
+    '<div class="question">' +
+      '<p class="q">' + (i + 1) + '. ' + esc(q.text) +
+        ' <span class="tag plain">' + plural(q.marks, 'mark') + '</span></p>' +
+      q.options.map((opt, oi) => {
+        let cls = 'option';
+        let suffix = '';
+        if (done) {
+          if (oi === q.answer) { cls += ' correct'; suffix = ' &mdash; correct answer'; }
+          else if (result.answers[i] === oi) { cls += ' wrong'; suffix = ' &mdash; your answer'; }
+        }
+        return '<label class="' + cls + '">' +
+          '<input type="radio" name="q' + i + '" value="' + oi + '"' +
+            (done ? ' disabled' : '') +
+            (done && result.answers[i] === oi ? ' checked' : '') + '>' +
+          '<span>' + esc(opt) + suffix + '</span>' +
+        '</label>';
+      }).join('') +
+    '</div>'
+  ).join('');
+
+  if (done) {
+    document.getElementById('result').style.display = '';
+    document.getElementById('score').textContent = 'Score: ' + result.score + ' out of ' + result.total;
+    document.getElementById('submit').style.display = 'none';
+  }
+}
+
+document.getElementById('quiz-form').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+  const answers = quiz.questions.map((q, i) => {
+    const picked = this.querySelector('input[name=q' + i + ']:checked');
+    return picked ? Number(picked.value) : -1;
+  });
+  if (answers.includes(-1)) {
+    msg.textContent = 'Please answer every question before submitting.';
+    return;
+  }
+  if (!confirm('Submit your answers? You can only attempt a quiz once.')) return;
+  try {
+    await api('POST', '/quizzes/' + quizId + '/submit', { answers });
+    const data = await api('GET', '/quizzes/' + quizId);
+    quiz = data.quiz;
+    render(data.result);
+    window.scrollTo(0, 0);
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+};
+
+load().catch(err => { document.querySelector('main').innerHTML = '<p class="note-msg">' + esc(err.message) + '</p>'; });
+</script>
+</body>
+</html>
