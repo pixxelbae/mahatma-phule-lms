@@ -11,16 +11,19 @@
 </head>
 <body>
 <main>
-  <div class="page-head">
+  <div class="hero">
     <div class="row">
       <div>
         <h1>Accounts</h1>
-        <p class="muted">Create logins for teachers and students, then share the email and password with them.</p>
+        <p class="muted" style="margin:0">Create logins for teachers and students, then share the email and password with them.</p>
       </div>
       <button class="toggle" id="user-toggle">
         <span class="chev"></span><span class="label">New account</span>
       </button>
     </div>
+  </div>
+
+  <div class="page-head">
 
     <div class="panel" id="user-panel">
       <div class="panel-inner">
@@ -57,6 +60,8 @@
     </div>
   </div>
 
+  <div class="stats" id="stats"></div>
+
   <div class="section">
     <h2>Teachers</h2>
     <div class="card" id="teachers"></div>
@@ -75,6 +80,9 @@ const panel = slideToggle('user-toggle', 'user-panel');
 
 async function load() {
   const data = await api('GET', '/users');
+  const count = role => data.users.filter(u => u.role === role).length;
+  document.getElementById('stats').innerHTML =
+    statTile(count('teacher'), 'Teachers', 'book') + statTile(count('student'), 'Students', 'users');
   render('teachers', data.users.filter(u => u.role === 'teacher'));
   render('students', data.users.filter(u => u.role === 'student'));
 }
@@ -87,7 +95,7 @@ function render(id, users) {
   }
   box.innerHTML = users.map(u =>
     '<div class="list-item">' +
-      '<div><div>' + esc(u.name) + '</div><div class="muted">' + esc(u.email) + '</div></div>' +
+      '<div class="person">' + avatar(u.name) + '<div><div>' + esc(u.name) + '</div><div class="muted">' + esc(u.email) + '</div></div></div>' +
       '<button class="link" data-id="' + u.id + '">Remove</button>' +
     '</div>'
   ).join('');

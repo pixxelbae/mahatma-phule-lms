@@ -11,39 +11,42 @@
 </head>
 <body>
 <main>
-  <div class="page-head">
+  <div class="hero">
     <div class="row">
       <div>
-        <h1>My courses</h1>
-        <p class="muted" id="sub"></p>
+        <h1 id="greeting"></h1>
+        <p class="muted" id="sub" style="margin:0"></p>
       </div>
       <button class="toggle" id="course-toggle" style="display:none">
         <span class="chev"></span><span class="label">New course</span>
       </button>
     </div>
+  </div>
 
-    <div class="panel" id="course-panel">
-      <div class="panel-inner">
-        <div class="card">
-          <form id="new-course">
-            <div class="field-row">
-              <div class="field">
-                <label for="title">Course name</label>
-                <input type="text" id="title" placeholder="Class 10 Mathematics" required>
-              </div>
-              <div class="field">
-                <label for="description">Short description (optional)</label>
-                <input type="text" id="description" placeholder="Weekday batch, 5 to 6 pm">
-              </div>
+  <div class="panel" id="course-panel">
+    <div class="panel-inner">
+      <div class="card">
+        <form id="new-course">
+          <div class="field-row">
+            <div class="field">
+              <label for="title">Course name</label>
+              <input type="text" id="title" placeholder="Basic English" required>
             </div>
-            <button type="submit">Create course</button>
-            <p class="note-msg" id="msg"></p>
-          </form>
-        </div>
+            <div class="field">
+              <label for="description">Short description (optional)</label>
+              <input type="text" id="description" placeholder="Tuesday and Friday, 3 to 5 pm">
+            </div>
+          </div>
+          <button type="submit">Create course</button>
+          <p class="note-msg" id="msg"></p>
+        </form>
       </div>
     </div>
   </div>
 
+  <div class="stats" id="stats"></div>
+
+  <div class="section-head"><h2 id="list-title">Courses</h2></div>
   <div id="courses"></div>
 </main>
 
@@ -52,37 +55,93 @@
 const user = requireUser(['teacher', 'student']);
 let panel = null;
 
+const hour = new Date().getHours();
+document.getElementById('greeting').textContent =
+  (hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening') + ', ' + user.name.split(' ')[0];
+
 if (user.role === 'teacher') {
-  document.getElementById('sub').textContent = 'Courses you teach.';
+  document.getElementById('sub').textContent = 'Your courses, topics and class sessions.';
+  document.getElementById('list-title').textContent = 'Courses you teach';
   document.getElementById('course-toggle').style.display = '';
   panel = slideToggle('course-toggle', 'course-panel');
 } else {
-  document.getElementById('sub').textContent = 'Open a course to see its notes and quizzes.';
+  document.getElementById('sub').textContent = 'Pick up where you left off.';
+  document.getElementById('list-title').textContent = 'Your courses';
+}
+
+function teacherCard(c) {
+  return '<a class="card" href="/manage?id=' + c.id + '">' +
+    '<div class="course-top"><span class="course-badge">' + esc(c.title.trim()[0] || '?') + '</span>' +
+      '<div><h3>' + esc(c.title) + '</h3>' +
+      (c.description ? '<div class="muted">' + esc(c.description) + '</div>' : '') + '</div></div>' +
+    '<div class="grow"></div>' +
+    '<div class="chips">' +
+      '<span class="chip">' + icon('users') + plural(c.studentCount, 'student') + '</span>' +
+      '<span class="chip">' + icon('layers') + plural(c.topicCount, 'topic') + '</span>' +
+      '<span class="chip">' + icon('quiz') + plural(c.quizCount, 'quiz', 'quizzes') + '</span>' +
+      '<span class="chip">' + icon('calendar') + plural(c.sessionCount, 'session') + '</span>' +
+    '</div>' +
+  '</a>';
+}
+
+function studentCard(c) {
+  const p = c.progress, a = c.attendance;
+  const remaining = p.topicsTotal - p.topicsDone;
+  return '<a class="card" href="/course?id=' + c.id + '">' +
+    '<div class="course-top"><span class="course-badge">' + esc(c.title.trim()[0] || '?') + '</span>' +
+      '<div><h3>' + esc(c.title) + '</h3><div class="muted">Taught by ' + esc(c.teacher) + '</div></div></div>' +
+    '<div class="grow"></div>' +
+    '<div class="progress-row"><span>Progress</span><strong>' + pct(p.attempted, p.total) + '%</strong></div>' +
+    progressBar(p.attempted, p.total) +
+    '<div class="progress-row"><span>Attendance</span><strong>' + (a.total ? pct(a.present, a.total) + '%' : '&ndash;') + '</strong></div>' +
+    progressBar(a.present, a.total, 'sm gold') +
+    '<div class="chips">' +
+      '<span class="chip">' + icon('check') + p.attempted + ' of ' + plural(p.total, 'quiz', 'quizzes') + ' done</span>' +
+      (p.topicsTotal ? '<span class="chip">' + icon('layers') + (remaining ? plural(remaining, 'topic') + ' left' : 'All topics done') + '</span>' : '') +
+    '</div>' +
+  '</a>';
+}
+
+function renderStats(list) {
+  const sum = key => list.reduce((s, c) => s + c[key], 0);
+  let tiles;
+  if (user.role === 'teacher') {
+    tiles = [
+      statTile(list.length, list.length === 1 ? 'Course' : 'Courses', 'book'),
+      statTile(sum('studentCount'), 'Enrolments', 'users'),
+      statTile(sum('topicCount'), 'Topics', 'layers'),
+      statTile(sum('sessionCount'), 'Sessions logged', 'calendar')
+    ];
+  } else {
+    const done = list.reduce((s, c) => s + c.progress.attempted, 0);
+    const total = list.reduce((s, c) => s + c.progress.total, 0);
+    const present = list.reduce((s, c) => s + c.attendance.present, 0);
+    const held = list.reduce((s, c) => s + c.attendance.total, 0);
+    const topicsDone = list.reduce((s, c) => s + c.progress.topicsDone, 0);
+    tiles = [
+      statTile(list.length, list.length === 1 ? 'Course' : 'Courses', 'book'),
+      statTile(done + '<small class="muted"> / ' + total + '</small>', 'Quizzes attempted', 'quiz'),
+      statTile(topicsDone, 'Topics completed', 'layers'),
+      statTile(held ? pct(present, held) + '%' : '&ndash;', 'Attendance', 'calendar')
+    ];
+  }
+  document.getElementById('stats').innerHTML = tiles.join('');
 }
 
 async function load() {
   const data = await api('GET', '/courses');
+  renderStats(data.courses);
   const box = document.getElementById('courses');
   if (!data.courses.length) {
     box.innerHTML = '<div class="card"><p class="empty">' +
       (user.role === 'teacher'
-        ? 'You have not created any courses yet.'
-        : 'You have not been added to any courses yet.') +
+        ? 'You have not created any courses yet. Use "New course" above to start.'
+        : 'You have not been added to any courses yet. Your teacher will add you.') +
       '</p></div>';
     return;
   }
-  const href = user.role === 'teacher' ? '/manage?id=' : '/course?id=';
-  box.innerHTML = data.courses.map(c => {
-    const files = plural(c.noteCount, 'note') + ' &middot; ' + plural(c.quizCount, 'quiz', 'quizzes');
-    const meta = user.role === 'teacher'
-      ? plural(c.studentCount, 'student') + ' &middot; ' + files
-      : 'Taught by ' + esc(c.teacher) + ' &middot; ' + files;
-    return '<a class="card" href="' + href + c.id + '">' +
-      '<h3>' + esc(c.title) + '</h3>' +
-      (c.description ? '<p class="muted">' + esc(c.description) + '</p>' : '') +
-      '<p class="muted">' + meta + '</p>' +
-    '</a>';
-  }).join('');
+  box.className = 'course-grid';
+  box.innerHTML = data.courses.map(user.role === 'teacher' ? teacherCard : studentCard).join('');
 }
 
 document.getElementById('new-course').onsubmit = async function (e) {

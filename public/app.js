@@ -42,6 +42,63 @@ function homeFor(role) {
   return role === 'admin' ? '/people' : '/dashboard';
 }
 
+function pct(part, whole) {
+  return whole ? Math.round(part / whole * 100) : 0;
+}
+
+function progressBar(part, whole, size) {
+  return '<div class="progress' + (size ? ' ' + size : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct(part, whole) + '">' +
+    '<span style="width:' + pct(part, whole) + '%"></span></div>';
+}
+
+function initials(name) {
+  return esc(String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+}
+
+function avatar(name) {
+  return '<span class="avatar">' + initials(name) + '</span>';
+}
+
+// "2026-09-05" -> "Fri, 5 Sep 2026". Parsed as local noon so no timezone shifts the day.
+function niceDate(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function today() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+const ICONS = {
+  note: '<path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.5 3.5 5.2"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  download: '<path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/>'
+};
+
+function icon(name) {
+  return '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + '</svg>';
+}
+
+function statTile(value, label, iconName) {
+  return '<div class="stat">' +
+    (iconName ? '<span class="stat-icon">' + icon(iconName) + '</span>' : '') +
+    '<div><div class="stat-value">' + value + '</div><div class="stat-label">' + label + '</div></div>' +
+  '</div>';
+}
+
+// Topic status from its quizzes. A topic with no quiz yet cannot be completed.
+function topicStatus(done, total) {
+  if (!total) return { cls: 'none', text: 'No quiz yet' };
+  if (done === total) return { cls: 'done', text: 'Completed' };
+  if (done > 0) return { cls: 'doing', text: 'In progress' };
+  return { cls: 'todo', text: 'Not started' };
+}
+
 // Renders the top bar and returns the signed-in user. Redirects if the
 // role is not allowed on this page.
 function requireUser(roles) {
@@ -53,9 +110,9 @@ function requireUser(roles) {
   bar.className = 'bar';
   bar.innerHTML =
     '<div class="bar-inner">' +
-      '<a class="brand" href="' + homeFor(user.role) + '">Mahatma Phule LMS</a>' +
+      '<a class="brand" href="' + homeFor(user.role) + '"><span class="brand-mark">' + icon('book') + '</span>Mahatma Phule LMS</a>' +
       '<div class="bar-right">' +
-        '<span>' + esc(user.name) + ' &middot; ' + user.role + '</span>' +
+        '<span class="who">' + avatar(user.name) + '<span>' + esc(user.name) + '<small>' + user.role + '</small></span></span>' +
         '<button class="secondary" id="logout">Log out</button>' +
       '</div>' +
     '</div>';
@@ -115,5 +172,24 @@ function slideToggle(buttonId, panelId) {
 
   btn.setAttribute('aria-expanded', 'false');
   btn.onclick = () => set(!panel.classList.contains('open'));
-  return { close: () => set(false) };
+  return { close: () => set(false), open: () => set(true) };
+}
+
+// Plain tab switcher; the active tab is kept in the URL hash so a reload stays put.
+function tabs(container) {
+  const buttons = [...container.querySelectorAll('[data-tab]')];
+  function show(name) {
+    if (!buttons.some(b => b.dataset.tab === name)) name = buttons[0].dataset.tab;
+    buttons.forEach(b => {
+      const on = b.dataset.tab === name;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      document.getElementById('tab-' + b.dataset.tab).hidden = !on;
+    });
+    history.replaceState(null, '', '#' + name);
+  }
+  buttons.forEach(b => { b.onclick = () => show(b.dataset.tab); });
+  window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+  return show;
 }

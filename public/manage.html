@@ -13,22 +13,142 @@
 <main>
   <a class="back" href="/dashboard">&larr; All courses</a>
 
-  <div class="page-head">
+  <div class="hero">
     <div class="row">
       <div>
         <h1 id="title"></h1>
-        <p class="muted" id="sub"></p>
+        <p class="muted" id="sub" style="margin:0"></p>
       </div>
       <button class="link" id="delete-course">Delete course</button>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-head">
-      <h2>Students</h2>
-      <button class="toggle" id="student-toggle">
-        <span class="chev"></span><span class="label">Add student</span>
-      </button>
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button data-tab="content" role="tab">Topics &amp; content <span class="count" id="c-topics">0</span></button>
+    <button data-tab="sessions" role="tab">Session log <span class="count" id="c-sessions">0</span></button>
+    <button data-tab="students" role="tab">Students <span class="count" id="c-students">0</span></button>
+  </div>
+
+  <!-- ============ CONTENT ============ -->
+  <div id="tab-content">
+    <div class="toolbar">
+      <button class="toggle" id="topic-toggle"><span class="chev"></span><span class="label">New topic</span></button>
+      <button class="toggle" id="note-toggle"><span class="chev"></span><span class="label">Upload note</span></button>
+      <button class="toggle" id="quiz-toggle"><span class="chev"></span><span class="label">New quiz</span></button>
+    </div>
+
+    <div class="panel" id="topic-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-topic">
+            <div class="field">
+              <label for="topic-title">Topic name</label>
+              <input type="text" id="topic-title" placeholder="Tenses &mdash; simple present" required>
+            </div>
+            <button type="submit">Add topic</button>
+            <p class="note-msg" id="topic-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="note-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-note">
+            <div class="field-row">
+              <div class="field">
+                <label for="note-title">Title</label>
+                <input type="text" id="note-title" placeholder="Examples of the simple present" required>
+              </div>
+              <div class="field">
+                <label for="note-topic">Topic</label>
+                <select id="note-topic" class="topic-select"></select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="note-content">Text (optional)</label>
+              <textarea id="note-content" placeholder="Type the notes here, or leave this blank and attach a file."></textarea>
+            </div>
+            <div class="field">
+              <label for="note-file">Attach a file (optional)</label>
+              <input type="file" id="note-file">
+            </div>
+            <button type="submit">Upload note</button>
+            <p class="note-msg" id="note-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="quiz-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-quiz">
+            <div class="field-row">
+              <div class="field">
+                <label for="quiz-title">Quiz title</label>
+                <input type="text" id="quiz-title" placeholder="Simple present check" required>
+              </div>
+              <div class="field">
+                <label for="quiz-topic">Topic</label>
+                <select id="quiz-topic" class="topic-select"></select>
+              </div>
+            </div>
+            <div id="questions"></div>
+            <button type="button" class="secondary" id="add-question">Add another question</button>
+            <div style="margin-top:18px"><button type="submit">Save quiz</button></div>
+            <p class="note-msg" id="quiz-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="topics" style="margin-top:20px"></div>
+  </div>
+
+  <!-- ============ SESSIONS ============ -->
+  <div id="tab-sessions" hidden>
+    <div class="toolbar">
+      <button class="toggle" id="session-toggle"><span class="chev"></span><span class="label">Log a session</span></button>
+    </div>
+
+    <div class="panel" id="session-panel">
+      <div class="panel-inner">
+        <div class="card">
+          <form id="add-session">
+            <div class="field" style="max-width:220px">
+              <label for="session-date">Date</label>
+              <input type="date" id="session-date" required>
+            </div>
+            <label>Topics covered</label>
+            <div class="topic-picks" id="topic-picks"></div>
+            <div class="field">
+              <label for="session-summary">What was taught (optional if you ticked a topic)</label>
+              <textarea id="session-summary" placeholder="Revised tenses with the board, then each group read a short passage aloud."></textarea>
+            </div>
+            <label>Attendance <span class="muted" id="att-count"></span></label>
+            <div class="mini-actions">
+              <button type="button" class="secondary" id="all-present">Everyone present</button>
+              <button type="button" class="secondary" id="all-absent">Clear all</button>
+            </div>
+            <div class="register" id="register"></div>
+            <button type="submit">Save session</button>
+            <p class="note-msg" id="session-msg"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="sessions" style="margin-top:20px"></div>
+  </div>
+
+  <!-- ============ STUDENTS ============ -->
+  <div id="tab-students" hidden>
+    <div class="toolbar">
+      <button class="toggle" id="student-toggle"><span class="chev"></span><span class="label">Add student</span></button>
     </div>
 
     <div class="panel" id="student-panel">
@@ -46,69 +166,10 @@
       </div>
     </div>
 
-    <div class="card" id="students" style="margin-top:14px"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head">
-      <h2>Notes</h2>
-      <button class="toggle" id="note-toggle">
-        <span class="chev"></span><span class="label">Upload note</span>
-      </button>
+    <div class="card" style="margin-top:20px">
+      <div class="table-wrap" id="students"></div>
     </div>
-
-    <div class="panel" id="note-panel">
-      <div class="panel-inner">
-        <div class="card">
-          <form id="add-note">
-            <div class="field">
-              <label for="note-title">Title</label>
-              <input type="text" id="note-title" placeholder="Chapter 3 &mdash; Quadratic equations" required>
-            </div>
-            <div class="field">
-              <label for="note-content">Text (optional)</label>
-              <textarea id="note-content" placeholder="Type the notes here, or leave this blank and attach a file."></textarea>
-            </div>
-            <div class="field">
-              <label for="note-file">Attach a file (optional)</label>
-              <input type="file" id="note-file">
-            </div>
-            <button type="submit">Upload note</button>
-            <p class="note-msg" id="note-msg"></p>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" id="notes" style="margin-top:14px"></div>
-  </div>
-
-  <div class="section">
-    <div class="section-head">
-      <h2>Quizzes</h2>
-      <button class="toggle" id="quiz-toggle">
-        <span class="chev"></span><span class="label">New quiz</span>
-      </button>
-    </div>
-
-    <div class="panel" id="quiz-panel">
-      <div class="panel-inner">
-        <div class="card">
-          <form id="add-quiz">
-            <div class="field">
-              <label for="quiz-title">Quiz title</label>
-              <input type="text" id="quiz-title" placeholder="Chapter 3 test" required>
-            </div>
-            <div id="questions"></div>
-            <button type="button" class="secondary" id="add-question">Add another question</button>
-            <div style="margin-top:18px"><button type="submit">Save quiz</button></div>
-            <p class="note-msg" id="quiz-msg"></p>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" id="quizzes" style="margin-top:14px"></div>
+    <p class="muted">Attendance below 75% is marked in red. Progress counts quizzes attempted out of all quizzes in this course.</p>
   </div>
 </main>
 
@@ -117,103 +178,156 @@
 requireUser(['teacher']);
 const courseId = param('id');
 
-const studentPanel = slideToggle('student-toggle', 'student-panel');
+const topicPanel = slideToggle('topic-toggle', 'topic-panel');
 const notePanel = slideToggle('note-toggle', 'note-panel');
 const quizPanel = slideToggle('quiz-toggle', 'quiz-panel');
+const sessionPanel = slideToggle('session-toggle', 'session-panel');
+const studentPanel = slideToggle('student-toggle', 'student-panel');
+tabs(document.getElementById('tabs'));
+
+async function guard(fn) {
+  try { await fn(); } catch (err) { alert(err.message); }
+}
 
 /* ---------- load ---------- */
 
 async function load() {
-  const data = await api('GET', '/courses/' + courseId);
+  const [data, overview, sessions] = await Promise.all([
+    api('GET', '/courses/' + courseId),
+    api('GET', '/courses/' + courseId + '/overview'),
+    api('GET', '/courses/' + courseId + '/sessions')
+  ]);
+  document.title = data.course.title;
   document.getElementById('title').textContent = data.course.title;
-  document.getElementById('sub').textContent = data.course.description || '';
+  document.getElementById('sub').textContent = data.course.description || 'Taught by ' + data.course.teacher;
 
-  const students = document.getElementById('students');
-  students.innerHTML = data.students.length
-    ? data.students.map(s =>
-        '<div class="list-item">' +
-          '<div><div>' + esc(s.name) + '</div><div class="muted">' + esc(s.email) + '</div></div>' +
-          '<button class="link" data-student="' + s.id + '">Remove</button>' +
-        '</div>'
-      ).join('')
-    : '<p class="empty">No students in this course yet.</p>';
-  students.querySelectorAll('button[data-student]').forEach(b => {
-    b.onclick = async () => {
-      if (!confirm('Remove this student from the course?')) return;
-      await api('DELETE', '/courses/' + courseId + '/students/' + b.dataset.student);
-      load();
-    };
-  });
+  document.getElementById('c-topics').textContent = data.topics.length;
+  document.getElementById('c-sessions').textContent = sessions.sessions.length;
+  document.getElementById('c-students').textContent = data.students.length;
 
-  const notes = document.getElementById('notes');
-  notes.innerHTML = data.notes.length
-    ? data.notes.map(n =>
-        '<div class="list-item">' +
-          '<div><h3>' + esc(n.title) + '</h3>' +
-            (n.content ? '<pre class="note-body">' + esc(n.content) + '</pre>' : '') +
-            (n.fileName ? '<p style="margin:8px 0 0"><a class="tag" href="/files/' + n.id + '">' + esc(n.fileName) + '</a></p>' : '') +
-          '</div>' +
-          '<button class="link" data-note="' + n.id + '">Remove</button>' +
-        '</div>'
-      ).join('')
-    : '<p class="empty">No notes uploaded yet.</p>';
-  notes.querySelectorAll('button[data-note]').forEach(b => {
-    b.onclick = async () => {
-      if (!confirm('Remove this note?')) return;
-      await api('DELETE', '/notes/' + b.dataset.note);
-      load();
-    };
-  });
+  renderStats(data, overview, sessions.sessions);
+  renderTopicSelects(data.topics);
+  renderTopics(data);
+  renderSessionForm(data);
+  renderSessions(sessions.sessions);
+  renderStudents(overview);
+}
 
-  const quizzes = document.getElementById('quizzes');
-  quizzes.innerHTML = data.quizzes.length
-    ? data.quizzes.map(q =>
-        '<div class="list-item">' +
-          '<div><h3>' + esc(q.title) + '</h3>' +
-            '<p class="muted">' + plural(q.questionCount, 'question') + ' &middot; ' + plural(q.totalMarks, 'mark') + '</p>' +
-            '<div class="muted" id="res-' + q.id + '"></div>' +
-          '</div>' +
-          '<button class="link" data-quiz="' + q.id + '">Remove</button>' +
-        '</div>'
-      ).join('')
-    : '<p class="empty">No quizzes added yet.</p>';
-  quizzes.querySelectorAll('button[data-quiz]').forEach(b => {
-    b.onclick = async () => {
-      if (!confirm('Remove this quiz and its results?')) return;
-      await api('DELETE', '/quizzes/' + b.dataset.quiz);
-      load();
-    };
-  });
-  data.quizzes.forEach(async q => {
-    const r = await api('GET', '/quizzes/' + q.id + '/results');
-    const box = document.getElementById('res-' + q.id);
-    if (!box) return;
-    box.innerHTML = r.results.length
-      ? r.results.map(x => esc(x.student) + ': ' + x.score + '/' + x.total).join('<br>')
-      : 'No attempts yet.';
+function renderStats(data, overview, sessions) {
+  const present = overview.students.reduce((s, x) => s + x.attendance.present, 0);
+  const held = overview.students.reduce((s, x) => s + x.attendance.total, 0);
+  document.getElementById('stats').innerHTML = [
+    statTile(data.students.length, 'Students', 'users'),
+    statTile(data.topics.length, 'Topics', 'layers'),
+    statTile(sessions.length, 'Sessions logged', 'calendar'),
+    statTile(held ? pct(present, held) + '%' : '&ndash;', 'Average attendance', 'check')
+  ].join('');
+}
+
+/* ---------- topics & content ---------- */
+
+function renderTopicSelects(topics) {
+  const opts = '<option value="">General (no topic)</option>' +
+    topics.map(t => '<option value="' + t.id + '">' + esc(t.title) + '</option>').join('');
+  document.querySelectorAll('.topic-select').forEach(sel => {
+    const keep = sel.value;
+    sel.innerHTML = opts;
+    // Default new content to the newest topic, which is usually the one being taught.
+    sel.value = topics.some(t => t.id === keep) ? keep : (topics.length ? topics[topics.length - 1].id : '');
   });
 }
 
-/* ---------- students ---------- */
+function noteItem(n) {
+  return '<div class="item">' +
+    '<span class="item-icon note">' + icon('note') + '</span>' +
+    '<div class="item-main"><h3>' + esc(n.title) + '</h3>' +
+      '<div class="muted">Note' + (n.fileName ? ' &middot; <a href="/files/' + n.id + '">' + esc(n.fileName) + '</a>' : '') + '</div>' +
+      (n.content ? '<details><summary></summary><pre class="note-body">' + esc(n.content) + '</pre></details>' : '') +
+    '</div>' +
+    '<div class="item-actions"><button class="link" data-note="' + n.id + '">Remove</button></div>' +
+  '</div>';
+}
 
-document.getElementById('add-student').onsubmit = async function (e) {
+function quizItem(q, studentCount) {
+  return '<div class="item">' +
+    '<span class="item-icon quiz">' + icon('quiz') + '</span>' +
+    '<div class="item-main"><h3>' + esc(q.title) + '</h3>' +
+      '<div class="muted">Quiz &middot; ' + plural(q.questionCount, 'question') + ' &middot; ' + plural(q.totalMarks, 'mark') +
+        ' &middot; attempted by ' + q.attemptCount + ' of ' + studentCount + '</div>' +
+      (q.attemptCount ? '<details data-results="' + q.id + '"><summary></summary><div class="results-list">Loading&hellip;</div></details>' : '') +
+    '</div>' +
+    '<div class="item-actions"><button class="link" data-quiz="' + q.id + '">Remove</button></div>' +
+  '</div>';
+}
+
+function topicBlock(num, topic, notes, quizzes, studentCount) {
+  const body = notes.map(noteItem).join('') + quizzes.map(q => quizItem(q, studentCount)).join('');
+  return '<div class="card topic">' +
+    '<div class="topic-head">' +
+      '<h3>' + (num ? '<span class="topic-num">' + num + '</span>' : '') + esc(topic ? topic.title : 'General') + '</h3>' +
+      '<div class="topic-side">' +
+        '<span class="muted">' + plural(notes.length, 'note') + ' &middot; ' + plural(quizzes.length, 'quiz', 'quizzes') + '</span>' +
+        (topic
+          ? '<button class="secondary mini" data-add-note="' + topic.id + '">+ Note</button>' +
+            '<button class="secondary mini" data-add-quiz="' + topic.id + '">+ Quiz</button>' +
+            '<button class="link" data-topic="' + topic.id + '">Remove</button>'
+          : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="topic-body">' + (body || '<p class="empty" style="padding:12px 0">No notes or quizzes in this topic yet.</p>') + '</div>' +
+  '</div>';
+}
+
+function renderTopics(data) {
+  const box = document.getElementById('topics');
+  const n = data.students.length;
+  const pick = id => ({ notes: data.notes.filter(x => x.topicId === id), quizzes: data.quizzes.filter(x => x.topicId === id) });
+  let html = data.topics.map((t, i) => { const g = pick(t.id); return topicBlock(i + 1, t, g.notes, g.quizzes, n); }).join('');
+  const general = pick(null);
+  if (general.notes.length || general.quizzes.length) html += topicBlock(null, null, general.notes, general.quizzes, n);
+  box.innerHTML = html || '<div class="card"><p class="empty">Start by adding a topic, then upload notes and quizzes under it.</p></div>';
+
+  box.querySelectorAll('[data-note]').forEach(b => b.onclick = () => guard(async () => {
+    if (!confirm('Remove this note?')) return;
+    await api('DELETE', '/notes/' + b.dataset.note); load();
+  }));
+  box.querySelectorAll('[data-quiz]').forEach(b => b.onclick = () => guard(async () => {
+    if (!confirm('Remove this quiz and every student\'s result for it?')) return;
+    await api('DELETE', '/quizzes/' + b.dataset.quiz); load();
+  }));
+  box.querySelectorAll('[data-topic]').forEach(b => b.onclick = () => guard(async () => {
+    if (!confirm('Remove this topic? Its notes and quizzes are kept and move to General.')) return;
+    await api('DELETE', '/topics/' + b.dataset.topic); load();
+  }));
+  box.querySelectorAll('[data-add-note]').forEach(b => b.onclick = () => openWithTopic(notePanel, 'note-topic', b.dataset.addNote, 'note-title'));
+  box.querySelectorAll('[data-add-quiz]').forEach(b => b.onclick = () => openWithTopic(quizPanel, 'quiz-topic', b.dataset.addQuiz, 'quiz-title'));
+  box.querySelectorAll('details[data-results]').forEach(d => d.addEventListener('toggle', async () => {
+    if (!d.open || d.dataset.loaded) return;
+    d.dataset.loaded = '1';
+    const r = await api('GET', '/quizzes/' + d.dataset.results + '/results');
+    d.querySelector('.results-list').innerHTML = r.results
+      .map(x => esc(x.student) + ' &mdash; <b>' + x.score + '/' + x.total + '</b>').join('<br>');
+  }));
+}
+
+function openWithTopic(panel, selectId, topicId, focusId) {
+  document.getElementById(selectId).value = topicId;
+  panel.open();
+  document.getElementById(selectId).closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => document.getElementById(focusId).focus({ preventScroll: true }), 350);
+}
+
+document.getElementById('add-topic').onsubmit = async function (e) {
   e.preventDefault();
-  const msg = document.getElementById('student-msg');
-  msg.className = 'note-msg';
+  const msg = document.getElementById('topic-msg');
   msg.textContent = '';
   try {
-    await api('POST', '/courses/' + courseId + '/students', {
-      email: document.getElementById('email').value
-    });
+    await api('POST', '/courses/' + courseId + '/topics', { title: document.getElementById('topic-title').value });
     this.reset();
-    studentPanel.close();
-    load();
-  } catch (err) {
-    msg.textContent = err.message;
-  }
+    topicPanel.close();
+    await load();
+  } catch (err) { msg.textContent = err.message; }
 };
-
-/* ---------- notes ---------- */
 
 function readFile(file) {
   return new Promise((resolve, reject) => {
@@ -227,26 +341,26 @@ function readFile(file) {
 document.getElementById('add-note').onsubmit = async function (e) {
   e.preventDefault();
   const msg = document.getElementById('note-msg');
-  msg.className = 'note-msg';
   msg.textContent = '';
   const file = document.getElementById('note-file').files[0];
   try {
     if (file && file.size > 15 * 1024 * 1024) throw new Error('Please keep files under 15 MB.');
     const body = {
       title: document.getElementById('note-title').value,
-      content: document.getElementById('note-content').value
+      content: document.getElementById('note-content').value,
+      topicId: document.getElementById('note-topic').value || null
     };
     if (file) {
       body.fileName = file.name;
       body.fileData = await readFile(file);
     }
     await api('POST', '/courses/' + courseId + '/notes', body);
-    this.reset();
+    document.getElementById('note-title').value = '';
+    document.getElementById('note-content').value = '';
+    document.getElementById('note-file').value = '';
     notePanel.close();
     load();
-  } catch (err) {
-    msg.textContent = err.message;
-  }
+  } catch (err) { msg.textContent = err.message; }
 };
 
 /* ---------- quiz builder ---------- */
@@ -280,7 +394,6 @@ document.getElementById('add-question').onclick = addQuestion;
 document.getElementById('add-quiz').onsubmit = async function (e) {
   e.preventDefault();
   const msg = document.getElementById('quiz-msg');
-  msg.className = 'note-msg';
   msg.textContent = '';
   const questions = [...document.querySelectorAll('.qblock')].map(block => ({
     text: block.querySelector('.q-text').value,
@@ -291,6 +404,7 @@ document.getElementById('add-quiz').onsubmit = async function (e) {
   try {
     await api('POST', '/courses/' + courseId + '/quizzes', {
       title: document.getElementById('quiz-title').value,
+      topicId: document.getElementById('quiz-topic').value || null,
       questions
     });
     document.getElementById('quiz-title').value = '';
@@ -299,18 +413,136 @@ document.getElementById('add-quiz').onsubmit = async function (e) {
     addQuestion();
     quizPanel.close();
     load();
-  } catch (err) {
-    msg.textContent = err.message;
+  } catch (err) { msg.textContent = err.message; }
+};
+
+/* ---------- sessions ---------- */
+
+function renderSessionForm(data) {
+  const dateInput = document.getElementById('session-date');
+  if (!dateInput.value) dateInput.value = today();
+  dateInput.max = today();
+
+  document.getElementById('topic-picks').innerHTML = data.topics.length
+    ? data.topics.map(t => '<label><input type="checkbox" name="topic" value="' + t.id + '">' + esc(t.title) + '</label>').join('')
+    : '<p class="muted" style="margin:0">Add topics in the first tab to tick them here.</p>';
+
+  document.getElementById('register').innerHTML = data.students.length
+    ? data.students.map(s =>
+        '<label><input type="checkbox" name="present" value="' + s.id + '" checked>' + avatar(s.name) +
+        '<span>' + esc(s.name) + '</span><span class="state"></span></label>').join('')
+    : '<p class="muted" style="margin:0">Add students to this course to take attendance.</p>';
+  updateRegister();
+}
+
+function updateRegister() {
+  const boxes = [...document.querySelectorAll('#register input')];
+  boxes.forEach(b => { b.closest('label').querySelector('.state').textContent = b.checked ? 'Present' : 'Absent'; });
+  const here = boxes.filter(b => b.checked).length;
+  document.getElementById('att-count').textContent = boxes.length ? '(' + here + ' of ' + boxes.length + ' present)' : '';
+}
+
+document.getElementById('register').addEventListener('change', updateRegister);
+document.getElementById('all-present').onclick = () => { document.querySelectorAll('#register input').forEach(b => { b.checked = true; }); updateRegister(); };
+document.getElementById('all-absent').onclick = () => { document.querySelectorAll('#register input').forEach(b => { b.checked = false; }); updateRegister(); };
+
+function renderSessions(list) {
+  const box = document.getElementById('sessions');
+  box.innerHTML = list.length
+    ? '<h2>Past sessions</h2>' + list.map(s => {
+        const d = new Date(s.date + 'T12:00:00');
+        return '<div class="session">' +
+          '<div class="date-chip"><b>' + d.getDate() + '</b><small>' + d.toLocaleDateString('en-IN', { month: 'short' }) + '</small></div>' +
+          '<div class="session-main">' +
+            '<div class="row" style="align-items:flex-start">' +
+              '<h3>' + esc(s.topics.join(', ') || 'Class session') + '</h3>' +
+              '<button class="link" data-session="' + s.id + '">Remove</button>' +
+            '</div>' +
+            '<div class="muted">' + niceDate(s.date) + ' &middot; ' + s.presentCount + ' of ' + s.totalCount + ' present</div>' +
+            (s.totalCount ? '<div style="max-width:260px;margin-top:8px">' + progressBar(s.presentCount, s.totalCount, 'sm') + '</div>' : '') +
+            (s.summary ? '<p style="margin:8px 0 0;font-size:14px;color:#5d574e">' + esc(s.summary) + '</p>' : '') +
+            (s.absent.length ? '<p class="muted" style="margin:6px 0 0">Absent: ' + s.absent.map(esc).join(', ') + '</p>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('')
+    : '<p class="empty">No sessions logged yet. After each class, use "Log a session" to record the date, topics and attendance.</p>';
+  box.querySelectorAll('[data-session]').forEach(b => b.onclick = () => guard(async () => {
+    if (!confirm('Remove this session and its attendance record?')) return;
+    await api('DELETE', '/sessions/' + b.dataset.session); load();
+  }));
+}
+
+document.getElementById('add-session').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('session-msg');
+  msg.textContent = '';
+  try {
+    await api('POST', '/courses/' + courseId + '/sessions', {
+      date: document.getElementById('session-date').value,
+      summary: document.getElementById('session-summary').value,
+      topicIds: [...document.querySelectorAll('#topic-picks input:checked')].map(b => b.value),
+      present: [...document.querySelectorAll('#register input:checked')].map(b => b.value)
+    });
+    document.getElementById('session-summary').value = '';
+    document.getElementById('session-date').value = '';
+    sessionPanel.close();
+    load();
+  } catch (err) { msg.textContent = err.message; }
+};
+
+/* ---------- students ---------- */
+
+function renderStudents(overview) {
+  const box = document.getElementById('students');
+  if (!overview.students.length) {
+    box.innerHTML = '<p class="empty">No students in this course yet. Use "Add student" to enrol someone by email.</p>';
+    return;
   }
+  box.innerHTML = '<table class="data"><thead><tr>' +
+      '<th>Student</th><th>Attendance</th><th>Progress</th><th>Topics done</th><th>Avg score</th><th></th>' +
+    '</tr></thead><tbody>' +
+    overview.students.map(s => {
+      const a = s.attendance, p = s.progress;
+      const ap = pct(a.present, a.total);
+      return '<tr>' +
+        '<td><div class="person">' + avatar(s.name) + '<div><div>' + esc(s.name) + '</div><div class="muted">' + esc(s.email) + '</div></div></div></td>' +
+        '<td class="cell-progress">' + (a.total
+          ? '<span class="' + (ap < 75 ? 'low' : '') + '">' + ap + '%</span> <span class="muted">(' + a.present + '/' + a.total + ')</span>' + progressBar(a.present, a.total, 'sm gold')
+          : '<span class="muted">No sessions</span>') + '</td>' +
+        '<td class="cell-progress">' + (p.total
+          ? pct(p.attempted, p.total) + '% <span class="muted">(' + p.attempted + '/' + p.total + ')</span>' + progressBar(p.attempted, p.total, 'sm')
+          : '<span class="muted">No quizzes</span>') + '</td>' +
+        '<td>' + (p.topicsTotal ? p.topicsDone + ' / ' + p.topicsTotal : '<span class="muted">&ndash;</span>') + '</td>' +
+        '<td>' + (s.averagePct === null ? '<span class="muted">&ndash;</span>' : s.averagePct + '%') + '</td>' +
+        '<td style="text-align:right"><button class="link" data-student="' + s.id + '">Remove</button></td>' +
+      '</tr>';
+    }).join('') +
+  '</tbody></table>';
+  box.querySelectorAll('[data-student]').forEach(b => b.onclick = () => guard(async () => {
+    if (!confirm('Remove this student from the course?')) return;
+    await api('DELETE', '/courses/' + courseId + '/students/' + b.dataset.student); load();
+  }));
+}
+
+document.getElementById('add-student').onsubmit = async function (e) {
+  e.preventDefault();
+  const msg = document.getElementById('student-msg');
+  msg.textContent = '';
+  try {
+    await api('POST', '/courses/' + courseId + '/students', { email: document.getElementById('email').value });
+    this.reset();
+    studentPanel.close();
+    load();
+  } catch (err) { msg.textContent = err.message; }
 };
 
 /* ---------- delete course ---------- */
 
-document.getElementById('delete-course').onclick = async () => {
-  if (!confirm('Delete this course along with its notes and quizzes?')) return;
+document.getElementById('delete-course').onclick = () => guard(async () => {
+  if (!confirm('Delete this course along with its topics, notes, quizzes and session log?')) return;
   await api('DELETE', '/courses/' + courseId);
   location.href = '/dashboard';
-};
+});
 
 load().catch(err => { document.querySelector('main').innerHTML = '<p class="note-msg">' + esc(err.message) + '</p>'; });
 </script>

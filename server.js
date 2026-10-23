@@ -18,9 +18,11 @@ function seed() {
       { id: 'u3', name: 'Rahul Verma', email: 'student@institute.com', password: 'student123', role: 'student' }
     ],
     courses: [],
+    topics: [],
     notes: [],
     quizzes: [],
-    results: []
+    results: [],
+    sessions: []
   };
 }
 
@@ -31,6 +33,9 @@ try {
   db = seed();
   fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
 }
+// Data files written before topics and session logs existed lack these collections.
+db.topics = db.topics || [];
+db.sessions = db.sessions || [];
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
 function save() {
@@ -74,6 +79,48 @@ function readBody(req) {
 
 function publicUser(u) {
   return { id: u.id, name: u.name, email: u.email, role: u.role };
+}
+
+// A topic counts towards "topics completed" only once it has at least one quiz,
+// and is complete when the student has attempted every quiz in it.
+function progressFor(courseId, studentId) {
+  const quizzes = db.quizzes.filter(q => q.courseId === courseId);
+  const done = new Set(db.results.filter(r => r.studentId === studentId).map(r => r.quizId));
+  let topicsDone = 0, topicsTotal = 0;
+  db.topics.filter(t => t.courseId === courseId).forEach(t => {
+    const tq = quizzes.filter(q => q.topicId === t.id);
+    if (!tq.length) return;
+    topicsTotal++;
+    if (tq.every(q => done.has(q.id))) topicsDone++;
+  });
+  return {
+    attempted: quizzes.filter(q => done.has(q.id)).length,
+    total: quizzes.length,
+    topicsDone,
+    topicsTotal
+  };
+}
+
+// Only sessions where the student was on the register count, so a student
+// added mid-term is not marked absent for classes held before they joined.
+function attendanceFor(courseId, studentId) {
+  const sessions = db.sessions.filter(s => s.courseId === courseId && studentId in s.attendance);
+  return { present: sessions.filter(s => s.attendance[studentId]).length, total: sessions.length };
+}
+
+function averagePct(courseId, studentId) {
+  const quizIds = new Set(db.quizzes.filter(q => q.courseId === courseId).map(q => q.id));
+  const mine = db.results.filter(r => r.studentId === studentId && quizIds.has(r.quizId) && r.total);
+  if (!mine.length) return null;
+  return Math.round(mine.reduce((s, r) => s + r.score / r.total, 0) / mine.length * 100);
+}
+
+function topicTitles(ids) {
+  return (ids || []).map(id => (db.topics.find(t => t.id === id) || {}).title).filter(Boolean);
+}
+
+function validTopic(topicId, courseId) {
+  return db.topics.some(t => t.id === topicId && t.courseId === courseId);
 }
 
 function courseForUser(courseId, user) {
@@ -143,8 +190,12 @@ async function api(req, res, url) {
       if (!target) return send(res, 404, { error: 'User not found.' });
       if (target.role === 'admin') return send(res, 400, { error: 'The admin account cannot be removed.' });
       db.users = db.users.filter(u => u.id !== target.id);
-      db.courses = db.courses.filter(c => c.teacherId !== target.id);
+      const goneCourses = new Set(db.courses.filter(c => c.teacherId === target.id).map(c => c.id));
+      db.courses = db.courses.filter(c => !goneCourses.has(c.id));
+      db.topics = db.topics.filter(t => !goneCourses.has(t.courseId));
+      db.sessions = db.sessions.filter(s => !goneCourses.has(s.courseId));
       db.courses.forEach(c => { c.studentIds = c.studentIds.filter(s => s !== target.id); });
+      db.sessions.forEach(s => { delete s.attendance[target.id]; });
       db.results = db.results.filter(r => r.studentId !== target.id);
       save();
       return send(res, 200, { ok: true });
@@ -161,15 +212,24 @@ async function api(req, res, url) {
       else if (me.role === 'student') list = db.courses.filter(c => c.studentIds.includes(me.id));
       else list = db.courses;
       return send(res, 200, {
-        courses: list.map(c => ({
-          id: c.id,
-          title: c.title,
-          description: c.description,
-          teacher: (db.users.find(u => u.id === c.teacherId) || {}).name || 'Unknown',
-          noteCount: db.notes.filter(n => n.courseId === c.id).length,
-          quizCount: db.quizzes.filter(q => q.courseId === c.id).length,
-          studentCount: c.studentIds.length
-        }))
+        courses: list.map(c => {
+          const out = {
+            id: c.id,
+            title: c.title,
+            description: c.description,
+            teacher: (db.users.find(u => u.id === c.teacherId) || {}).name || 'Unknown',
+            topicCount: db.topics.filter(t => t.courseId === c.id).length,
+            noteCount: db.notes.filter(n => n.courseId === c.id).length,
+            quizCount: db.quizzes.filter(q => q.courseId === c.id).length,
+            studentCount: c.studentIds.length,
+            sessionCount: db.sessions.filter(s => s.courseId === c.id).length
+          };
+          if (me.role === 'student') {
+            out.progress = progressFor(c.id, me.id);
+            out.attendance = attendanceFor(c.id, me.id);
+          }
+          return out;
+        })
       });
     }
 
@@ -207,20 +267,97 @@ async function api(req, res, url) {
           .map(sid => db.users.find(u => u.id === sid))
           .filter(Boolean)
           .map(publicUser),
+        topics: db.topics.filter(t => t.courseId === course.id).map(t => ({ id: t.id, title: t.title })),
         notes: db.notes.filter(n => n.courseId === course.id).map(n => ({
-          id: n.id, title: n.title, content: n.content, fileName: n.fileName, createdAt: n.createdAt
+          id: n.id, topicId: n.topicId || null, title: n.title, content: n.content, fileName: n.fileName, createdAt: n.createdAt
         })),
         quizzes: db.quizzes.filter(q => q.courseId === course.id).map(q => {
           const result = db.results.find(r => r.quizId === q.id && r.studentId === me.id);
           return {
             id: q.id,
+            topicId: q.topicId || null,
             title: q.title,
             questionCount: q.questions.length,
             totalMarks: q.questions.reduce((s, x) => s + x.marks, 0),
+            attemptCount: db.results.filter(r => r.quizId === q.id).length,
             result: result ? { score: result.score, total: result.total } : null
+          };
+        }),
+        progress: me.role === 'student' ? progressFor(course.id, me.id) : null,
+        attendance: me.role === 'student' ? attendanceFor(course.id, me.id) : null
+      });
+    }
+
+    // GET /api/courses/:id/overview  (teacher: every student's attendance and progress)
+    if (method === 'GET' && seg[2] === 'overview') {
+      if (!owns) return send(res, 403, { error: 'Not allowed.' });
+      return send(res, 200, {
+        sessionCount: db.sessions.filter(s => s.courseId === course.id).length,
+        quizCount: db.quizzes.filter(q => q.courseId === course.id).length,
+        students: course.studentIds
+          .map(sid => db.users.find(u => u.id === sid))
+          .filter(Boolean)
+          .map(u => ({
+            ...publicUser(u),
+            attendance: attendanceFor(course.id, u.id),
+            progress: progressFor(course.id, u.id),
+            averagePct: averagePct(course.id, u.id)
+          }))
+      });
+    }
+
+    // POST /api/courses/:id/topics
+    if (method === 'POST' && seg[2] === 'topics') {
+      if (!owns) return send(res, 403, { error: 'Not allowed.' });
+      const title = String(body.title || '').trim();
+      if (!title) return send(res, 400, { error: 'Topic name is required.' });
+      const topic = { id: id(), courseId: course.id, title, createdAt: new Date().toISOString() };
+      db.topics.push(topic);
+      save();
+      return send(res, 200, { topic });
+    }
+
+    // GET /api/courses/:id/sessions
+    if (method === 'GET' && seg[2] === 'sessions') {
+      const list = db.sessions
+        .filter(s => s.courseId === course.id)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+      if (me.role === 'student') {
+        return send(res, 200, {
+          sessions: list.filter(s => me.id in s.attendance).map(s => ({
+            id: s.id, date: s.date, topics: topicTitles(s.topicIds), summary: s.summary, present: s.attendance[me.id]
+          }))
+        });
+      }
+      const name = sid => (db.users.find(u => u.id === sid) || {}).name;
+      return send(res, 200, {
+        sessions: list.map(s => {
+          const ids = Object.keys(s.attendance).filter(name);
+          return {
+            id: s.id, date: s.date, topics: topicTitles(s.topicIds), summary: s.summary,
+            presentCount: ids.filter(sid => s.attendance[sid]).length,
+            totalCount: ids.length,
+            absent: ids.filter(sid => !s.attendance[sid]).map(name)
           };
         })
       });
+    }
+
+    // POST /api/courses/:id/sessions
+    if (method === 'POST' && seg[2] === 'sessions') {
+      if (!owns) return send(res, 403, { error: 'Not allowed.' });
+      const date = String(body.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) return send(res, 400, { error: 'Pick the date of the session.' });
+      const topicIds = (Array.isArray(body.topicIds) ? body.topicIds : []).filter(t => validTopic(t, course.id));
+      const summary = String(body.summary || '').trim();
+      if (!topicIds.length && !summary) return send(res, 400, { error: 'Tick the topics covered or write what was taught.' });
+      const present = new Set(Array.isArray(body.present) ? body.present : []);
+      const attendance = {};
+      course.studentIds.forEach(sid => { attendance[sid] = present.has(sid); });
+      const session = { id: id(), courseId: course.id, date, topicIds, summary, attendance, createdAt: new Date().toISOString() };
+      db.sessions.push(session);
+      save();
+      return send(res, 200, { session: { id: session.id } });
     }
 
     // DELETE /api/courses/:id
@@ -234,6 +371,8 @@ async function api(req, res, url) {
       const quizIds = db.quizzes.filter(q => q.courseId === course.id).map(q => q.id);
       db.quizzes = db.quizzes.filter(q => q.courseId !== course.id);
       db.results = db.results.filter(r => !quizIds.includes(r.quizId));
+      db.topics = db.topics.filter(t => t.courseId !== course.id);
+      db.sessions = db.sessions.filter(s => s.courseId !== course.id);
       save();
       return send(res, 200, { ok: true });
     }
@@ -263,9 +402,11 @@ async function api(req, res, url) {
       if (!owns) return send(res, 403, { error: 'Not allowed.' });
       const title = String(body.title || '').trim();
       if (!title) return send(res, 400, { error: 'Note title is required.' });
+      if (body.topicId && !validTopic(body.topicId, course.id)) return send(res, 400, { error: 'That topic no longer exists.' });
       const note = {
         id: id(),
         courseId: course.id,
+        topicId: body.topicId || null,
         title,
         content: String(body.content || '').trim(),
         fileName: null,
@@ -291,6 +432,7 @@ async function api(req, res, url) {
       const questions = Array.isArray(body.questions) ? body.questions : [];
       if (!title) return send(res, 400, { error: 'Quiz title is required.' });
       if (!questions.length) return send(res, 400, { error: 'Add at least one question.' });
+      if (body.topicId && !validTopic(body.topicId, course.id)) return send(res, 400, { error: 'That topic no longer exists.' });
       const clean = [];
       for (const q of questions) {
         const text = String(q.text || '').trim();
@@ -302,11 +444,37 @@ async function api(req, res, url) {
         if (!(answer >= 0 && answer <= 3)) return send(res, 400, { error: 'Mark the correct option for every question.' });
         clean.push({ text, options, answer, marks });
       }
-      const quiz = { id: id(), courseId: course.id, title, questions: clean, createdAt: new Date().toISOString() };
+      const quiz = { id: id(), courseId: course.id, topicId: body.topicId || null, title, questions: clean, createdAt: new Date().toISOString() };
       db.quizzes.push(quiz);
       save();
       return send(res, 200, { quiz: { id: quiz.id, title: quiz.title } });
     }
+  }
+
+  /* ----- topics ----- */
+  // Deleting a topic keeps its notes and quizzes; they fall back to "General".
+  if (seg[0] === 'topics' && seg[1] && method === 'DELETE') {
+    const topic = db.topics.find(t => t.id === seg[1]);
+    if (!topic) return send(res, 404, { error: 'Topic not found.' });
+    const course = db.courses.find(c => c.id === topic.courseId);
+    if (!course || course.teacherId !== me.id) return send(res, 403, { error: 'Not allowed.' });
+    db.topics = db.topics.filter(t => t.id !== topic.id);
+    db.notes.forEach(n => { if (n.topicId === topic.id) n.topicId = null; });
+    db.quizzes.forEach(q => { if (q.topicId === topic.id) q.topicId = null; });
+    db.sessions.forEach(s => { s.topicIds = s.topicIds.filter(t => t !== topic.id); });
+    save();
+    return send(res, 200, { ok: true });
+  }
+
+  /* ----- sessions ----- */
+  if (seg[0] === 'sessions' && seg[1] && method === 'DELETE') {
+    const session = db.sessions.find(s => s.id === seg[1]);
+    if (!session) return send(res, 404, { error: 'Session not found.' });
+    const course = db.courses.find(c => c.id === session.courseId);
+    if (!course || course.teacherId !== me.id) return send(res, 403, { error: 'Not allowed.' });
+    db.sessions = db.sessions.filter(s => s.id !== session.id);
+    save();
+    return send(res, 200, { ok: true });
   }
 
   /* ----- notes ----- */
@@ -421,7 +589,9 @@ function serveStatic(req, res, pathname) {
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     return res.end('Page not found');
   }
-  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'text/plain' });
+  // No build step means no hashed filenames, so tell browsers to recheck rather
+  // than keep serving a stale page or stylesheet after an update.
+  res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'text/plain', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
 }
 

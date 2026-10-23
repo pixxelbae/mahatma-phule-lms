@@ -26,13 +26,24 @@ The office (admin) creates every account; there is no sign-up page.
 **Admin** — creates teacher and student accounts (name, email, password) and
 hands the login details to them. Accounts can also be removed.
 
-**Teacher** — creates courses, adds or removes students by their email address,
-uploads notes (typed text and/or an attached file) and writes MCQ quizzes with
-four options and marks per question. Student scores appear under each quiz.
+**Teacher** — creates courses and splits each one into topics. Notes (typed
+text and/or an attached file) and MCQ quizzes (four options, marks per
+question) are uploaded under a topic. Each course has three tabs:
 
-**Student** — sees their courses on the dashboard, opens a course to read or
-download its notes, and attempts each quiz once. The score and the correct
-answers are shown right after submitting.
+- *Topics & content* — topics with their notes and quizzes, and who has
+  attempted each quiz.
+- *Session log* — after each class, record the date, topics covered, what was
+  taught, and attendance.
+- *Students* — every student's attendance, quiz progress, topics completed and
+  average score. Attendance below 75% is marked in red.
+
+**Student** — the dashboard shows progress and attendance for each course. A
+course page lists notes and quizzes topic by topic, with a progress bar and a
+Completed / In progress / Not started status per topic. Progress goes up as
+quizzes are attempted; a topic is complete once all its quizzes are done. Each
+quiz can be attempted once, and the score and correct answers are shown right
+after submitting. The *My attendance* tab shows the attendance percentage and
+a present/absent history of every session.
 
 ## Files
 
